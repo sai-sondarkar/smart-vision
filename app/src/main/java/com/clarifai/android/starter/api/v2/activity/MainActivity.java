@@ -113,7 +113,7 @@ public class MainActivity extends AppCompatActivity {
             zoomSeekBar();
 
         }
-
+        // inti the camera apis in the camera view with switcher.
         private void setupFotoapparat() {
             frontFotoapparat = createFotoapparat(LensPosition.FRONT);
             backFotoapparat = createFotoapparat(LensPosition.BACK);
@@ -235,6 +235,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         private void takePicture() {
+
             PhotoResult photoResult = fotoapparatSwitcher.getCurrentFotoapparat().takePicture();
 
             photoResult.saveToFile(new File(
@@ -251,7 +252,7 @@ public class MainActivity extends AppCompatActivity {
 
                             imageView.setImageBitmap(result.bitmap);
                             imageView.setRotation(-result.rotationDegrees);
-
+                            // // TODO: 17/11/17  mansi josho part ends --
                             final byte[] imageBytes = ClarifaiUtil.retrieveSelectedImageInputBitmap(MainActivity.this, result.bitmap);
                             if (imageBytes != null) {
                                 onImagePicked(imageBytes);
@@ -346,8 +347,6 @@ private class SampleFrameProcessor implements FrameProcessor {
                             }
                         }
                     }
-
-
                 }
 
                 Log.d("response", "onPostExecute: "  + toSpeak);
