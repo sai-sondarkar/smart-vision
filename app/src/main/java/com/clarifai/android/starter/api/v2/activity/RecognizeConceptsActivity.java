@@ -4,12 +4,14 @@ import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.speech.tts.TextToSpeech;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.StringRes;
 import android.support.design.widget.Snackbar;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.ViewSwitcher;
@@ -26,8 +28,10 @@ import com.clarifai.android.starter.api.v2.ClarifaiUtil;
 import com.clarifai.android.starter.api.v2.R;
 import com.clarifai.android.starter.api.v2.adapter.RecognizeConceptsAdapter;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 import static android.view.View.GONE;
 import static android.view.View.VISIBLE;
@@ -35,6 +39,11 @@ import static android.view.View.VISIBLE;
 public final class RecognizeConceptsActivity extends BaseActivity {
 
   public static final int PICK_IMAGE = 100;
+
+  public TextToSpeech t1;
+
+  private List<Concept> concepts = new ArrayList<>();
+
 
   // the list of results that were returned from the API
   @BindView(R.id.resultsList) RecyclerView resultsList;
@@ -48,10 +57,21 @@ public final class RecognizeConceptsActivity extends BaseActivity {
   // the FAB that the user clicks to select an image
   @BindView(R.id.fab) View fab;
 
+
+
   @NonNull private final RecognizeConceptsAdapter adapter = new RecognizeConceptsAdapter();
 
   @Override protected void onCreate(@Nullable Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+
+    t1=new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
+      @Override
+      public void onInit(int status) {
+        if(status != TextToSpeech.ERROR) {
+          t1.setLanguage(Locale.UK);
+        }
+      }
+    });
 
   }
 
@@ -111,6 +131,22 @@ public final class RecognizeConceptsActivity extends BaseActivity {
           return;
         }
         adapter.setData(predictions.get(0).data());
+        String toSpeak = "this image contains";
+        for (Concept concept : predictions.get(0).data()){
+
+
+          if(concept.name().trim().equals("")){
+            toSpeak = toSpeak + "," + concept.id();
+          }else {
+            toSpeak = toSpeak + "," + concept.name();
+          }
+        }
+
+        Log.d("response", "onPostExecute: "  + toSpeak);
+
+        t1.speak("Hello sir" +  toSpeak, TextToSpeech.QUEUE_FLUSH, null);
+
+
         imageView.setImageBitmap(BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length));
       }
 

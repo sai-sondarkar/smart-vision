@@ -53,6 +53,31 @@ public final class ClarifaiUtil {
     }
   }
 
+    @Nullable
+    public static byte[] retrieveSelectedImageInputBitmap(@NonNull Context context, @NonNull Bitmap data) {
+        InputStream inStream = null;
+        Bitmap bitmap = null;
+        try {
+
+            bitmap = data;
+            final ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 20, outStream);
+            return outStream.toByteArray();
+        } catch (Exception e) {
+            return null;
+        } finally {
+            if (inStream != null) {
+                try {
+                    inStream.close();
+                } catch (IOException ignored) {
+                }
+            }
+//            if (bitmap != null) {
+//                bitmap.recycle();
+//            }
+        }
+    }
+
   @NonNull
   public static Activity unwrapActivity(@NonNull Context startFrom) {
     while (startFrom instanceof ContextWrapper) {
