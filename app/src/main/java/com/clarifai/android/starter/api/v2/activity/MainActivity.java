@@ -1,13 +1,11 @@
 package com.clarifai.android.starter.api.v2.activity;
 
-import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.support.annotation.NonNull;
 import android.support.annotation.StringRes;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.SwitchCompat;
 import android.util.Log;
@@ -24,12 +22,9 @@ import com.clarifai.android.starter.api.v2.ClarifaiUtil;
 import com.clarifai.android.starter.api.v2.R;
 
 import java.io.File;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
-import clarifai2.api.ClarifaiBuilder;
-import clarifai2.api.ClarifaiClient;
 import clarifai2.api.ClarifaiResponse;
 import clarifai2.dto.input.ClarifaiInput;
 import clarifai2.dto.input.image.ClarifaiImage;
@@ -54,8 +49,6 @@ import static io.fotoapparat.log.Loggers.fileLogger;
 import static io.fotoapparat.log.Loggers.logcat;
 import static io.fotoapparat.log.Loggers.loggers;
 import static io.fotoapparat.parameter.selector.AspectRatioSelectors.standardRatio;
-import static io.fotoapparat.parameter.selector.FlashSelectors.autoFlash;
-import static io.fotoapparat.parameter.selector.FlashSelectors.autoRedEye;
 import static io.fotoapparat.parameter.selector.FlashSelectors.off;
 import static io.fotoapparat.parameter.selector.FlashSelectors.torch;
 import static io.fotoapparat.parameter.selector.FocusModeSelectors.autoFocus;
@@ -70,240 +63,232 @@ import static io.fotoapparat.result.transformer.SizeTransformers.scaled;
 public class MainActivity extends AppCompatActivity {
 
     private final PermissionsDelegate permissionsDelegate = new PermissionsDelegate(this);
-        private boolean hasCameraPermission;
-        private CameraView cameraView;
-        private int size = 5,current=0;
-        TextToSpeech t1;
-        private FotoapparatSwitcher fotoapparatSwitcher;
-        private Fotoapparat frontFotoapparat;
-        private Fotoapparat backFotoapparat;
-
-        @Override
-        protected void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-            setContentView(R.layout.activity_main);
-
-            ScreenDesign();
-            screendesign();
-
-            cameraView = (CameraView) findViewById(R.id.camera_view);
-            hasCameraPermission = permissionsDelegate.hasCameraPermission();
-
-            if (hasCameraPermission) {
-                cameraView.setVisibility(View.VISIBLE);
-            } else {
-                permissionsDelegate.requestCameraPermission();
-            }
-
-            t1=new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
-                @Override
-                public void onInit(int status) {
-                    if(status != TextToSpeech.ERROR) {
-                        t1.setLanguage(Locale.UK);
-                    }
-                }
-            });
-
-            setupFotoapparat();
-
-            takePictureOnClick();
-            focusOnLongClick();
-            switchCameraOnClick();
-            toggleTorchOnSwitch();
-            zoomSeekBar();
-
-        }
-        // inti the camera apis in the camera view with switcher.
-        private void setupFotoapparat() {
-            frontFotoapparat = createFotoapparat(LensPosition.FRONT);
-            backFotoapparat = createFotoapparat(LensPosition.BACK);
-            fotoapparatSwitcher = FotoapparatSwitcher.withDefault(backFotoapparat);
-        }
-
-        private void zoomSeekBar() {
-            SeekBar seekBar = (SeekBar) findViewById(R.id.zoomSeekBar);
-
-            seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                @Override
-                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                    fotoapparatSwitcher
-                            .getCurrentFotoapparat()
-                            .setZoom(progress / (float) seekBar.getMax());
-                }
-
-                @Override
-                public void onStartTrackingTouch(SeekBar seekBar) {
-                    // Do nothing
-                }
-
-                @Override
-                public void onStopTrackingTouch(SeekBar seekBar) {
-                    // Do nothing
-                }
-            });
-        }
-
-        private void toggleTorchOnSwitch() {
-            SwitchCompat torchSwitch = (SwitchCompat) findViewById(R.id.torchSwitch);
-
-            torchSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    fotoapparatSwitcher
-                            .getCurrentFotoapparat()
-                            .updateParameters(
-                                    UpdateRequest.builder()
-                                            .flash(
-                                                    isChecked
-                                                            ? torch()
-                                                            : off()
-                                            )
-                                            .build()
-                            );
-                }
-            });
-        }
-
-        private void switchCameraOnClick() {
-            View switchCameraButton = findViewById(R.id.switchCamera);
-            switchCameraButton.setVisibility(
-                    canSwitchCameras()
-                            ? View.VISIBLE
-                            : View.GONE
-            );
-            switchCameraOnClick(switchCameraButton);
-        }
-
-        private void switchCameraOnClick(View view) {
-            view.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    switchCamera();
-                }
-            });
-        }
-
-        private void focusOnLongClick() {
-            cameraView.setOnLongClickListener(new View.OnLongClickListener() {
-                @Override
-                public boolean onLongClick(View v) {
-                    fotoapparatSwitcher.getCurrentFotoapparat().autoFocus();
-
-                    return true;
-                }
-            });
-        }
-
-        private void takePictureOnClick() {
-            cameraView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    takePicture();
-                }
-            });
-        }
-
-        private boolean canSwitchCameras() {
-            return frontFotoapparat.isAvailable() == backFotoapparat.isAvailable();
-        }
-
-        private Fotoapparat createFotoapparat(LensPosition position) {
-            return Fotoapparat
-                    .with(this)
-                    .into(cameraView)
-                    .previewScaleType(ScaleType.CENTER_CROP)
-                    .photoSize(standardRatio(biggestSize()))
-                    .lensPosition(lensPosition(position))
-                    .focusMode(firstAvailable(
-                            continuousFocus(),
-                            autoFocus(),
-                            fixed()
-                    ))
-                    .flash(off())
-                    .frameProcessor(new SampleFrameProcessor())
-                    .logger(loggers(
-                            logcat(),
-                            fileLogger(this)
-                    ))
-                    .cameraErrorCallback(new CameraErrorCallback() {
-                        @Override
-                        public void onError(CameraException e) {
-                            Toast.makeText(MainActivity.this, e.toString(), Toast.LENGTH_LONG).show();
-                        }
-                    })
-                    .build();
-        }
-
-        private void takePicture() {
-
-            PhotoResult photoResult = fotoapparatSwitcher.getCurrentFotoapparat().takePicture();
-
-            photoResult.saveToFile(new File(
-                    getExternalFilesDir("photos"),
-                    "photo.jpg"
-            ));
-
-            photoResult
-                    .toBitmap(scaled(0.25f))
-                    .whenAvailable(new PendingResult.Callback<BitmapPhoto>() {
-                        @Override
-                        public void onResult(BitmapPhoto result) {
-                            ImageView imageView = (ImageView) findViewById(R.id.result);
-
-                            imageView.setImageBitmap(result.bitmap);
-                            imageView.setRotation(-result.rotationDegrees);
-                            // // TODO: 17/11/17  mansi josho part ends --
-                            final byte[] imageBytes = ClarifaiUtil.retrieveSelectedImageInputBitmap(MainActivity.this, result.bitmap);
-                            if (imageBytes != null) {
-                                onImagePicked(imageBytes);
-                            }
-                        }
-                    });
-        }
-
-        private void switchCamera() {
-            if (fotoapparatSwitcher.getCurrentFotoapparat() == frontFotoapparat) {
-                fotoapparatSwitcher.switchTo(backFotoapparat);
-            } else {
-                fotoapparatSwitcher.switchTo(frontFotoapparat);
-            }
-        }
-
-        @Override
-        protected void onStart() {
-            super.onStart();
-            if (hasCameraPermission) {
-                fotoapparatSwitcher.start();
-            }
-        }
-
-        @Override
-        protected void onStop() {
-            super.onStop();
-            if (hasCameraPermission) {
-                fotoapparatSwitcher.stop();
-            }
-        }
-
-        @Override
-        public void onRequestPermissionsResult(int requestCode,
-                                               @NonNull String[] permissions,
-                                               @NonNull int[] grantResults) {
-            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-            if (permissionsDelegate.resultGranted(requestCode, permissions, grantResults)) {
-                fotoapparatSwitcher.start();
-                cameraView.setVisibility(View.VISIBLE);
-            }
-        }
-
-private class SampleFrameProcessor implements FrameProcessor {
+    TextToSpeech t1;
+    private boolean hasCameraPermission;
+    private CameraView cameraView;
+    private int size = 5, current = 0;
+    private FotoapparatSwitcher fotoapparatSwitcher;
+    private Fotoapparat frontFotoapparat;
+    private Fotoapparat backFotoapparat;
 
     @Override
-    public void processFrame(Frame frame) {
-        // Perform frame processing, if needed
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        ScreenDesign();
+        screendesign();
+
+        cameraView = (CameraView) findViewById(R.id.camera_view);
+        hasCameraPermission = permissionsDelegate.hasCameraPermission();
+
+        if (hasCameraPermission) {
+            cameraView.setVisibility(View.VISIBLE);
+        } else {
+            permissionsDelegate.requestCameraPermission();
+        }
+
+        t1 = new TextToSpeech(getApplicationContext(), new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int status) {
+                if (status != TextToSpeech.ERROR) {
+                    t1.setLanguage(Locale.UK);
+                }
+            }
+        });
+
+        setupFotoapparat();
+
+        takePictureOnClick();
+        focusOnLongClick();
+        switchCameraOnClick();
+        toggleTorchOnSwitch();
+        zoomSeekBar();
+
     }
 
-}
+    // inti the camera apis in the camera view with switcher.
+    private void setupFotoapparat() {
+        frontFotoapparat = createFotoapparat(LensPosition.FRONT);
+        backFotoapparat = createFotoapparat(LensPosition.BACK);
+        fotoapparatSwitcher = FotoapparatSwitcher.withDefault(backFotoapparat);
+    }
+
+    private void zoomSeekBar() {
+        SeekBar seekBar = (SeekBar) findViewById(R.id.zoomSeekBar);
+
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                fotoapparatSwitcher
+                        .getCurrentFotoapparat()
+                        .setZoom(progress / (float) seekBar.getMax());
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                // Do nothing
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                // Do nothing
+            }
+        });
+    }
+
+    private void toggleTorchOnSwitch() {
+        SwitchCompat torchSwitch = (SwitchCompat) findViewById(R.id.torchSwitch);
+
+        torchSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                fotoapparatSwitcher
+                        .getCurrentFotoapparat()
+                        .updateParameters(
+                                UpdateRequest.builder()
+                                        .flash(
+                                                isChecked
+                                                        ? torch()
+                                                        : off()
+                                        )
+                                        .build()
+                        );
+            }
+        });
+    }
+
+    private void switchCameraOnClick() {
+        View switchCameraButton = findViewById(R.id.switchCamera);
+        switchCameraButton.setVisibility(
+                canSwitchCameras()
+                        ? View.VISIBLE
+                        : View.GONE
+        );
+        switchCameraOnClick(switchCameraButton);
+    }
+
+    private void switchCameraOnClick(View view) {
+        view.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                switchCamera();
+            }
+        });
+    }
+
+    private void focusOnLongClick() {
+        cameraView.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                fotoapparatSwitcher.getCurrentFotoapparat().autoFocus();
+
+                return true;
+            }
+        });
+    }
+
+    private void takePictureOnClick() {
+        cameraView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                takePicture();
+            }
+        });
+    }
+
+    private boolean canSwitchCameras() {
+        return frontFotoapparat.isAvailable() == backFotoapparat.isAvailable();
+    }
+
+    private Fotoapparat createFotoapparat(LensPosition position) {
+        return Fotoapparat
+                .with(this)
+                .into(cameraView)
+                .previewScaleType(ScaleType.CENTER_CROP)
+                .photoSize(standardRatio(biggestSize()))
+                .lensPosition(lensPosition(position))
+                .focusMode(firstAvailable(
+                        continuousFocus(),
+                        autoFocus(),
+                        fixed()
+                ))
+                .flash(off())
+                .frameProcessor(new SampleFrameProcessor())
+                .logger(loggers(
+                        logcat(),
+                        fileLogger(this)
+                ))
+                .cameraErrorCallback(new CameraErrorCallback() {
+                    @Override
+                    public void onError(CameraException e) {
+                        Toast.makeText(MainActivity.this, e.toString(), Toast.LENGTH_LONG).show();
+                    }
+                })
+                .build();
+    }
+
+    private void takePicture() {
+
+        PhotoResult photoResult = fotoapparatSwitcher.getCurrentFotoapparat().takePicture();
+
+        photoResult.saveToFile(new File(
+                getExternalFilesDir("photos"),
+                "photo.jpg"
+        ));
+
+        photoResult
+                .toBitmap(scaled(0.25f))
+                .whenAvailable(new PendingResult.Callback<BitmapPhoto>() {
+                    @Override
+                    public void onResult(BitmapPhoto result) {
+                        ImageView imageView = (ImageView) findViewById(R.id.result);
+
+                        imageView.setImageBitmap(result.bitmap);
+                        imageView.setRotation(-result.rotationDegrees);
+                        // // TODO: 17/11/17  mansi josho part ends --
+                        final byte[] imageBytes = ClarifaiUtil.retrieveSelectedImageInputBitmap(MainActivity.this, result.bitmap);
+                        if (imageBytes != null) {
+                            onImagePicked(imageBytes);
+                        }
+                    }
+                });
+    }
+
+    private void switchCamera() {
+        if (fotoapparatSwitcher.getCurrentFotoapparat() == frontFotoapparat) {
+            fotoapparatSwitcher.switchTo(backFotoapparat);
+        } else {
+            fotoapparatSwitcher.switchTo(frontFotoapparat);
+        }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (hasCameraPermission) {
+            fotoapparatSwitcher.start();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (hasCameraPermission) {
+            fotoapparatSwitcher.stop();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (permissionsDelegate.resultGranted(requestCode, permissions, grantResults)) {
+            fotoapparatSwitcher.start();
+            cameraView.setVisibility(View.VISIBLE);
+        }
+    }
 
     private void onImagePicked(@NonNull final byte[] imageBytes) {
         // Now we will upload our image to the Clarifai API
@@ -311,7 +296,8 @@ private class SampleFrameProcessor implements FrameProcessor {
         // Make sure we don't show a list of old concepts while the image is being uploaded
 
         new AsyncTask<Void, Void, ClarifaiResponse<List<ClarifaiOutput<Concept>>>>() {
-            @Override protected ClarifaiResponse<List<ClarifaiOutput<Concept>>> doInBackground(Void... params) {
+            @Override
+            protected ClarifaiResponse<List<ClarifaiOutput<Concept>>> doInBackground(Void... params) {
                 // The default Clarifai model that identifies concepts in images
                 final ConceptModel generalModel = App.get().clarifaiClient().getDefaultModels().generalModel();
 
@@ -321,7 +307,9 @@ private class SampleFrameProcessor implements FrameProcessor {
                         .executeSync();
             }
 
-            @Override protected void onPostExecute(ClarifaiResponse<List<ClarifaiOutput<Concept>>> response) {
+            //// TODO: 17/11/17 Nidhu Part starts here for the response processing
+            @Override
+            protected void onPostExecute(ClarifaiResponse<List<ClarifaiOutput<Concept>>> response) {
                 if (!response.isSuccessful()) {
                     showErrorSnackbar(R.string.error_while_contacting_api);
                     return;
@@ -336,9 +324,12 @@ private class SampleFrameProcessor implements FrameProcessor {
                 current = 0;
                 for (Concept concept : predictions.get(0).data()) {
                     current++;
-                    if(current<=size){
 
-                        if (concept.value() >= 0.93) {
+                    Log.d("response", " " + concept.name() + " confidence " + concept.value());
+
+                    if (current <= size) {
+
+                        if (concept.value() >= 0.93) { //confidence should be high then 0.93
 
                             if (concept.name().trim().equals("")) {
                                 toSpeak = toSpeak + "," + concept.id();
@@ -349,21 +340,21 @@ private class SampleFrameProcessor implements FrameProcessor {
                     }
                 }
 
-                Log.d("response", "onPostExecute: "  + toSpeak);
+                Log.d("response", "onPostExecute: " + toSpeak);
 
-                t1.speak( toSpeak, TextToSpeech.QUEUE_FLUSH, null);
+                t1.speak(toSpeak, TextToSpeech.QUEUE_FLUSH, null);
 
-
+// todo :: nidhu part ends here
 
             }
 
             private void showErrorSnackbar(@StringRes int errorString) {
-                Toast.makeText(MainActivity.this," " + errorString,Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, " " + errorString, Toast.LENGTH_SHORT).show();
             }
         }.execute();
     }
 
-    public void screendesign(){
+    public void screendesign() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             View decor = getWindow().getDecorView();
 
@@ -380,7 +371,7 @@ private class SampleFrameProcessor implements FrameProcessor {
         }
     }
 
-    public void ScreenDesign(){
+    public void ScreenDesign() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             View decor = getWindow().getDecorView();
             boolean shouldChangeStatusBarTintToDark = true;
@@ -394,13 +385,22 @@ private class SampleFrameProcessor implements FrameProcessor {
                 decor.setSystemUiVisibility(0);
 
             }
-        }else{
+        } else {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
                 Window window = getWindow();
                 window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
                 window.setStatusBarColor(getResources().getColor(R.color.colorAccent));
             }
         }
+    }
+
+    private class SampleFrameProcessor implements FrameProcessor {
+
+        @Override
+        public void processFrame(Frame frame) {
+            // Perform frame processing, if needed
+        }
+
     }
 
 }
