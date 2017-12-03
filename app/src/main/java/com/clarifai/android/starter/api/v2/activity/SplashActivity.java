@@ -40,7 +40,7 @@ public class SplashActivity extends AppCompatActivity {
             }
         });
 
-        toSpeak = "Lets recognise the things in front of us";
+        toSpeak = "Lets recognise the things in front of us at Local hack day vadodara.";
 
         final Handler handler = new Handler();
         handler.postDelayed(new Runnable() {

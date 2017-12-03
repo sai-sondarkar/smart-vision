@@ -1,8 +1,11 @@
 package com.clarifai.android.starter.api.v2.activity;
 
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
 import android.support.annotation.NonNull;
 import android.support.annotation.StringRes;
@@ -22,6 +25,7 @@ import com.clarifai.android.starter.api.v2.ClarifaiUtil;
 import com.clarifai.android.starter.api.v2.R;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -71,8 +75,11 @@ public class MainActivity extends AppCompatActivity {
     private Fotoapparat frontFotoapparat;
     private Fotoapparat backFotoapparat;
 
+    private final int REQ_CODE_SPEECH_INPUT = 100;
+
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState)
+    {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -92,7 +99,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onInit(int status) {
                 if (status != TextToSpeech.ERROR) {
-                    t1.setLanguage(Locale.UK);
+                    t1.setLanguage(Locale.ENGLISH);
+
                 }
             }
         });
@@ -182,7 +190,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public boolean onLongClick(View v) {
                 fotoapparatSwitcher.getCurrentFotoapparat().autoFocus();
-
+                promptSpeechInput();
                 return true;
             }
         });
@@ -196,6 +204,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+
 
     private boolean canSwitchCameras() {
         return frontFotoapparat.isAvailable() == backFotoapparat.isAvailable();
@@ -329,7 +338,7 @@ public class MainActivity extends AppCompatActivity {
 
                     if (current <= size) {
 
-                        if (concept.value() >= 0.93) { //confidence should be high then 0.93
+                        if (concept.value() >= 0.90) { //confidence should be high then 0.93
 
                             if (concept.name().trim().equals("")) {
                                 toSpeak = toSpeak + "," + concept.id();
@@ -401,6 +410,74 @@ public class MainActivity extends AppCompatActivity {
             // Perform frame processing, if needed
         }
 
+    }
+
+
+    /**
+     * Showing google speech input dialog
+     * */
+    private void promptSpeechInput() {
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
+                "Speak Something");
+        try {
+            startActivityForResult(intent, REQ_CODE_SPEECH_INPUT);
+        } catch (ActivityNotFoundException a) {
+            Toast.makeText(getApplicationContext(),
+                    "Speech not Supported",
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Receiving speech input
+     * */
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        switch (requestCode) {
+            case REQ_CODE_SPEECH_INPUT: {
+                if (resultCode == RESULT_OK && null != data) {
+
+                    ArrayList<String> result = data
+                            .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                    Log.d("tags",result.toString());
+                    checkCammond(result.get(0));
+                }
+                break;
+            }
+        }
+    }
+
+
+    public void checkCammond(String command){
+
+        Toast.makeText(getApplicationContext(),command,Toast.LENGTH_SHORT).show();
+
+        if(command.equals("take me home")){
+            Toast.makeText(getApplicationContext(),"taking home",Toast.LENGTH_SHORT).show();
+            t1.speak("Taking your coordinate and will locate you to your home", TextToSpeech.QUEUE_FLUSH, null);
+        }else
+        if(command.equals("mark this as my home")){
+            Toast.makeText(getApplicationContext(),"mark this as my home",Toast.LENGTH_SHORT).show();
+            t1.speak("Marking your current location as Home", TextToSpeech.QUEUE_FLUSH, null);
+        }else
+        if(command.equals("vision how are you")){
+            Toast.makeText(getApplicationContext(),"mark this as my home",Toast.LENGTH_SHORT).show();
+            t1.speak("Bhai mai mast hu, App kise ho", TextToSpeech.QUEUE_FLUSH, null);
+        }else
+//            if(command.toLowerCase().equals("rahul")){
+//                t1.speak("he is a lodaa laassan innssaaan ", TextToSpeech.QUEUE_FLUSH, null);
+//            }
+//        else
+            {
+            Toast.makeText(getApplicationContext(),"muje nahi pata ",Toast.LENGTH_SHORT).show();
+            t1.speak("muuje nahi pata ", TextToSpeech.QUEUE_FLUSH, null);
+        }
     }
 
 }

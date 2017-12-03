@@ -41,7 +41,7 @@ dependencies {
             "com.android.support:appcompat-v7:25.3.0",
             "com.android.support:recyclerview-v7:25.3.0",
             "com.android.support:design:25.3.0",
-
+            "com.github.clans:fab:1.6.4",
             "com.clarifai.clarifai-api2:core:2.0.2",
 
             // For logging our HTTP outbound + inbound data
